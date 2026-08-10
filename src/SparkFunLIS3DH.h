@@ -161,7 +161,7 @@ class LIS3DSH : public LIS3DHCore
 {
 public:
 	//IMU settings
-	SensorSettings settings;
+	SensorSettings3DSH settings;
 	
 	//Error checking
 	uint16_t allOnesCounter;
@@ -169,7 +169,7 @@ public:
 
 	//Constructor generates default SensorSettings.
 	//(over-ride after construction if desired)
-	LIS3DSH( uint8_t busType = I2C_MODE, uint8_t inputArg = 0x19 );
+	LIS3DSH( uint8_t busType = I2C_MODE, uint8_t inputArg = LIS3DSH_ADDR_SEL_LOW);
 	//~LIS3DSH() = default;
 	
 	//Call to apply SensorSettings
@@ -362,4 +362,5 @@ private:
 #define LIS3DSH_TC2_L					0x7D
 #define LIS3DSH_TC2_H					0x7E
 #define LIS3DSH_OUTS2					0x7F
+
 #endif  // End of __LIS3DH_IMU_H__ definition check
