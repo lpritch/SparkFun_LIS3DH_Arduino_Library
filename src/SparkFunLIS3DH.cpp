@@ -2,6 +2,12 @@
 SparkFunLIS3DH.cpp
 LIS3DH Arduino and Teensy Driver
 
+The Lis3dSh portions of this code are NOT distributed or supported by SparkFun.
+
+Luke Pritchett
+August 11, 2026
+https://github.com/lpritch/SparkFun_LIS3DH_Arduino_Library
+
 Marshall Taylor @ SparkFun Electronics
 Nov 16, 2016
 https://github.com/sparkfun/LIS3DH_Breakout

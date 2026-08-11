@@ -5,13 +5,14 @@ SparkFun LIS3DH Arduino Library
 
  [*LIS3DH Breakout (SEN-13963)*](https://www.sparkfun.com/products/13963)
 
-This is an arduino IDE library to control the LIS3DH.  It can be configured to use I2C or SPI with 2 instances per I2C channel or any number of SPI instances.  The top-level driver, class LIS3DH, contains an inner driver LIS3DHCore, a settings struct, and float-based math functions for conversion from raw to meaningful numbers.
+This is an arduino IDE library to control the LIS3DH or LIS3DSH.  It can be configured to use I2C or SPI with 2 instances per I2C channel or any number of SPI instances.  The top-level driver, classes LIS3DH and LIS3DSH, contain an inner driver LIS3DHCore, a settings struct, and float-based math functions for conversion from raw to meaningful numbers.
 
 This has been tested with:
 
 * SparkFun RedBoard
 * SparkFun ESP32 Thing
 * Teensy 3.2
+* Arduino UNO R3
 
 Repository Contents
 -------------------
@@ -39,7 +40,7 @@ Documentation
 
 * **[Installing an Arduino Library Guide](https://learn.sparkfun.com/tutorials/installing-an-arduino-library)** - Basic information on how to install an Arduino library.
 * **[Product Repository](https://github.com/sparkfun/LIS3DH_Breakout)** - Main repository (including hardware files) for the LIS3DH Breakout.
-* **[Hookup Guide](https://learn.sparkfun.com/tutorials/lis3dh-hookup-guide)** - Basic hookup guide for the LIS3DH Breakout.
+* **[Hookup Guide](https://learn.sparkfun.com/tutorials/lis3dh-hookup-guide)** - Basic hookup guide for the LIS3DH Breakout. The LIS3DSH shares the same pins as the LIS3DH and setup procedure, but should also have SDO wired to ground by default.
 
 Products that use this Library 
 ---------------------------------
@@ -51,6 +52,7 @@ Version History
 
 * [V 1.0.0](https://github.com/sparkfun/SparkFun_LIS3DH_Arduino_Library/releases/tag/V_1.0.0) -- Initial commit of Arduino 1.6-compatible library.
 * [V 1.0.2](https://github.com/sparkfun/SparkFun_LIS3DH_Arduino_Library/releases/tag/V_1.0.2) -- Added Teensy and ESP32 support.
+* [V 1.0.3] (https://github.com/lpritch/SparkFun_LIS3DH_Arduino_Library/releases/tag/V_1.0.3) -- Added support for the LIS3DSH
 
 License Information
 -------------------
@@ -60,6 +62,8 @@ This product is _**open source**_!
 Please review the LICENSE.md file for license information. 
 
 If you have any questions or concerns on licensing, please contact support@sparkfun.com.
+
+_**The LIS3DSH portions of this code are NOT supported by SparkFun**_
 
 Distributed as-is; no warranty is given.
 
