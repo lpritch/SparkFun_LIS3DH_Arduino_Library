@@ -168,8 +168,11 @@ class LIS3DSH : public LIS3DHCore
 {
 public:
 	//IMU settings
-	SensorSettings settings;
-
+	SensorSettings3DSH settings;
+	
+	StateMachine sm1;
+	StateMachine sm2;
+	
 	//Error checking
 	uint16_t allOnesCounter;
 	uint16_t nonSuccessCounter;
@@ -181,7 +184,7 @@ public:
 	
 	//Call to apply SensorSettings
 	status_t begin( void );
-	void applySettings( void );
+	void applyGlobalSettings( void );
 
 	//Returns the raw bits from the sensor cast as 16-bit signed integers
 	int16_t readRawAccelX( void );

@@ -741,25 +741,98 @@ void LIS3DH::fifoEnd( void )
 ////****************************************************************************//
 LIS3DSH::LIS3DSH( uint8_t busType, uint8_t inputArg ) : LIS3DHCore( busType, inputArg )
 {
-	// These are not defined for LIS3dSh
-	settings.adcEnabled = 0;
-	settings.tempEnabled = 0;
+	// Use device defaults for settings except where marked.
 
 	//Accelerometer settings
+	// Device default is 0, CHANGING to 100 Hz
 	settings.accelSampleRate = 100;  //Hz.  Can be: 0,1,10,25,50,100,200,400,1600,5000 Hz
+	settings.blockDataUpdate = 0;
+
 	settings.accelRange = 2;      //Max G force readable.  Can be: 2, 4, 8, 16
 
 	settings.xAccelEnabled = 1;
 	settings.yAccelEnabled = 1;
 	settings.zAccelEnabled = 1;
 
+	
+	settings.dataReadySignal = 0;
+	settings.intHighOrLow = 0;
+	settings.intLatches = 0;
+	// Changing defaults for interrupts
+	settings.int1Enabled = 1;
+	settings.int2Enabled = 1;
+	settings.vectorFilterEnabled = 0;
+
+	// Using a non-default filter here to go with the default sampling
+	// rate of 100 Hz.
+	settings.antiAliasingBandwidth = 50; //Hz
+
+	settings.spiWireMode = 0;
+
 	//FIFO control settings
 	settings.fifoEnabled = 0;
+	settings.fifoLimitToWatermark = 0; 
+	settings.fifoWatermarkIntEnabled = 0;
+	settings.fifoOverrunIntEnabled = 0;
+	settings.fifoEmptyIntEnabled = 0;
+	settings.autoIncrement = 1;
+	
 	settings.fifoMode = 0; 
-	settings.fifoThreshold = 20;
+  	settings.fifoWatermarkLevel = 31;
+	
+	// SM2 Filter settings;
+	settings.constantShiftX = 0;
+	settings.constantShiftY = 0;
+	settings.constantShiftZ = 0;
+
+	settings.vectorFilterCoefficient_1 = 0;
+	settings.vectorFilterCoefficient_2 = 0;
+	settings.vectorFilterCoefficient_3 = 0;
+	settings.vectorFilterCoefficient_4 = 0;
+
+	settings.threshold3 = 0;
 
 	allOnesCounter = 0;
 	nonSuccessCounter = 0;
+
+	//
+	// State machine 1 settings
+	//
+	sm1.settings.enabled = 0;
+	sm1.settings.hysteresis = 0;
+	sm1.settings.intPin = 0;
+	
+	sm1.settings.threshold1 = 0;
+	sm1.settings.threshold2 = 0;
+	
+	sm1.settings.maskA = 0;
+	sm1.settings.maskB = 0;
+
+	sm1.settings.peakDetectionEnabled = 0;
+	sm1.settings.resetOnThreshold3MaskA = 0;
+	sm1.settings.resetOnThreshold3MaskB = 0;
+	sm1.settings.absThresholds = 0;
+	sm1.settings.sitr = 0;
+	//
+	// State machine 2 settings
+	settings.sm2UseDiff = 0;
+	settings.sm2DiffMode = 0;
+	
+	sm2.settings.enabled = 0;
+	sm2.settings.hysteresis = 0;
+	sm2.settings.intPin = 0;
+	
+	sm2.settings.threshold1 = 0;
+	sm2.settings.threshold2 = 0;
+	
+	sm2.settings.maskA = 0;
+	sm2.settings.maskB = 0;
+
+	sm2.settings.peakDetectionEnabled = 0;
+	sm2.settings.resetOnThreshold3MaskA = 0;
+	sm2.settings.resetOnThreshold3MaskB = 0;
+	sm2.settings.absThresholds = 0;
+	sm2.settings.sitr = 0;	
 }
 //
 ////****************************************************************************//
@@ -774,7 +847,7 @@ status_t LIS3DSH::begin( void )
 	//Begin the inherited core.  This gets the physical wires connected
 	status_t returnError = beginCore();
 
-	applySettings();
+	applyGlobalSettings();
 	
 	return returnError;
 }
@@ -789,12 +862,48 @@ status_t LIS3DSH::begin( void )
 ////
 ////****************************************************************************//
 // This will likely need to change significantly
-void LIS3DSH::applySettings( void )
+void LIS3DSH::applyGlobalSettings( void )
 {
 	uint8_t dataToWrite = 0;  //Temporary variable
 	uint8_t optionCode = 0;
 
+	//Build TEMP_CFG_REG
 	dataToWrite = 0; //Start Fresh!
+
+	// Constant shift vars
+	writeRegister(LIS3DSH_CS_X,settings.constantShiftX);
+	writeRegister(LIS3DSH_CS_Y,settings.constantShiftY);
+	writeRegister(LIS3DSH_CS_Z,settings.constantShiftZ);
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_CS_X: 0x");
+	Serial.println(settings.constantShiftX, HEX);
+	Serial.print("LIS3DSH_CS_Y: 0x");
+	Serial.println(settings.constantShiftY, HEX);
+	Serial.print("LIS3DSH_CS_Z: 0x");
+	Serial.println(settings.constantShiftZ, HEX);
+#endif
+	// Vector filter coefficients
+	writeRegister(LIS3DSH_VFC_1,settings.vectorFilterCoefficient_1);
+	writeRegister(LIS3DSH_VFC_2,settings.vectorFilterCoefficient_2);
+	writeRegister(LIS3DSH_VFC_3,settings.vectorFilterCoefficient_3);
+	writeRegister(LIS3DSH_VFC_4,settings.vectorFilterCoefficient_4);
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_VFC_1: 0x");
+	Serial.println(settings.vectorFilterCoefficient_1, HEX);
+	Serial.print("LIS3DSH_VFC_2: 0x");
+	Serial.println(settings.vectorFilterCoefficient_2, HEX);
+	Serial.print("LIS3DSH_VFC_3: 0x");
+	Serial.println(settings.vectorFilterCoefficient_3, HEX);
+	Serial.print("LIS3DSH_VFC_4: 0x");
+	Serial.println(settings.vectorFilterCoefficient_4, HEX);
+#endif
+
+	// THRS3
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_THRS3: 0x");
+	Serial.println(settings.threshold3, HEX);
+#endif
+	writeRegister(LIS3DSH_THRS3,settings.threshold3);
 
 	// CTRL_REG4
 	// output data rate
@@ -839,8 +948,7 @@ void LIS3DSH::applySettings( void )
 	}
 	dataToWrite |= (optionCode << 4);
 
-	// BDU bit is zero default
-
+	dataToWrite |= settings.blockDataUpdate << 3;
 	dataToWrite |= settings.zAccelEnabled << 2;
 	dataToWrite |= settings.yAccelEnabled << 1;
 	dataToWrite |= settings.xAccelEnabled;
@@ -850,8 +958,67 @@ void LIS3DSH::applySettings( void )
 #endif
 	writeRegister(LIS3DSH_CTRL_REG4,dataToWrite);
 
+	// CTRL_REG1
+	dataToWrite = 0x00;
+	dataToWrite |= (0x07 & sm1.settings.hysteresis) << 5;
+	dataToWrite |= sm1.settings.intPin << 3;
+	dataToWrite |= sm1.settings.enabled;
+
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_CTRL_REG1: 0x");
+	Serial.println(dataToWrite, HEX);
+#endif
+	writeRegister(LIS3DSH_CTRL_REG1, dataToWrite);
+
+	// CTRL_REG2
+	dataToWrite = 0x00;
+	dataToWrite |= (0x07 & sm2.settings.hysteresis) << 5;
+	dataToWrite |= sm2.settings.intPin << 3;
+	dataToWrite |= sm2.settings.enabled;
+
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_CTRL_REG2: 0x");
+	Serial.println(dataToWrite, HEX);
+#endif
+	writeRegister(LIS3DSH_CTRL_REG2, dataToWrite);
+
+	// CTRL_REG3
+	dataToWrite = 0x00;
+	dataToWrite |= settings.dataReadySignal << 7;
+	dataToWrite |= settings.intHighOrLow << 6;
+	dataToWrite |= settings.intLatches << 5;
+	dataToWrite |= settings.int2Enabled << 4;
+	dataToWrite |= settings.int1Enabled << 3;
+	dataToWrite |= settings.vectorFilterEnabled <<2;
+
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_CTRL_REG3: 0x");
+	Serial.println(dataToWrite, HEX);
+#endif
+	writeRegister(LIS3DSH_CTRL_REG3, dataToWrite);
+	
 	// CTRL_REG5
 	dataToWrite = 0x00;
+	switch (settings.antiAliasingBandwidth) {
+		default:
+#ifdef VERBOSE_SERIAL
+			Serial.println("Unrecognized anti-aliasing filter frequency, defaulting to 50 Hz");
+#endif
+		case 50:
+			optionCode = 0x3;
+			break;
+		case 200:
+			optionCode = 0x1;
+			break;
+		case 400:
+			optionCode = 0x2;
+			break;
+		case 800:
+			optionCode = 0x0;
+			break;
+	}
+	dataToWrite |= optionCode << 6;
+	
 	switch (settings.accelRange) {
 		default:
 #ifdef VERBOSE_SERIAL
@@ -867,45 +1034,14 @@ void LIS3DSH::applySettings( void )
 			optionCode = 0x2;
 			break;
 		case 8:
-			optionCode = 0x3;
+			optionCode = 3;
 			break;
 		case 16:
-			optionCode = 0x4;
+			optionCode = 4;
 			break;
 	}
 	dataToWrite |= optionCode << 3;
-	
-	// Determine the anti-aliasing filter to use based on the current ODR
-	// Available AA filters:
-	//	50: 11
-	//	200: 01
-	//	400: 10
-	//	800: 00
-	// Use filter close to half the sampling rate
-	// Default to 50 Hz because the 3dSh constructor defaults to 100 Hz sample rate
-	switch (settings.accelSampleRate) {
-		default:
-#ifdef VERBOSE_SERIAL
-			Serial.println("Unrecognized full sample rate, defaulting anti-aliasing frequency to 50Hz.");
-#endif
-		case 3:
-		case 6:
-		case 12:
-		case 25:
-		case 50:
-		case 100:
-			optionCode = 0x3;
-			break;
-		case 400:
-			optionCode = 0x1;
-			break;
-		case 800:
-			optionCode = 0x2;
-			break;
-		case 1600:
-			optionCode = 0x0;
-	}
-	dataToWrite |= (0x3 & optionCode) << 6;
+	dataToWrite |= settings.spiWireMode;
 #ifdef VERBOSE_SERIAL
 	Serial.print("LIS3DSH_CTRL_REG5: 0x");
 	Serial.println(dataToWrite, HEX);
@@ -915,6 +1051,11 @@ void LIS3DSH::applySettings( void )
 	// CTRL_REG6
 	dataToWrite = 0x00;
 	dataToWrite |= settings.fifoEnabled << 6;
+	dataToWrite |= settings.fifoLimitToWatermark << 5;
+	dataToWrite |= settings.autoIncrement << 4;
+	dataToWrite |= settings.fifoEmptyIntEnabled << 3;
+	dataToWrite |= settings.fifoWatermarkIntEnabled << 2;
+	dataToWrite |= settings.fifoOverrunIntEnabled << 1;
 #ifdef VERBOSE_SERIAL
 	Serial.print("LIS3DSH_CTRL_REG6: 0x");
 	Serial.println(dataToWrite, HEX);
@@ -923,13 +1064,14 @@ void LIS3DSH::applySettings( void )
 
 	// FIFO_CTRL
 	dataToWrite = 0x00;
-	dataToWrite |= (0x7 & settings.fifoMode) << 5;
-	dataToWrite |= (settings.fifoThreshold & 0x1F);
+	dataToWrite |= settings.fifoMode << 5;
+	dataToWrite |= (settings.fifoWatermarkLevel & 0x1F);
 #ifdef VERBOSE_SERIAL
 	Serial.print("LIS3DSH_FIFO_CTRL: 0x");
 	Serial.println(dataToWrite, HEX);
 #endif
 	writeRegister(LIS3DSH_FIFO_CTRL, dataToWrite);
+
 }
 ////****************************************************************************//
 ////
@@ -1037,115 +1179,131 @@ float LIS3DSH::calcAccel( int16_t input )
 	}
 	return output;
 }
-//****************************************************************************//
 //
-//  FIFO section
+////****************************************************************************//
+////
+////  Accelerometer section
+////
+////****************************************************************************//
+//uint16_t LIS3DSH::read10bitADC1( void )
+//{
+//	int16_t intTemp;
+//	uint16_t uintTemp;
+//	readRegisterInt16( &intTemp, LIS3DSH_OUT_ADC1_L );
+//	intTemp = 0 - intTemp;
+//	uintTemp = intTemp + 32768;
+//	return uintTemp >> 6;
+//}
 //
-//****************************************************************************//
-void LIS3DSH::fifoBegin( void )
-{
-	uint8_t dataToWrite = 0;  //Temporary variable
-
-	//Build LIS3DSH_FIFO_CTRL_REG
-	// FMODE and watermark threshold level are in FIFO_CTRL
-	// FIFO enable in CTRL_REG6
-	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL); //Start with existing data
-	dataToWrite = 0x00;
-	// On the 3dSh fifoMode is 3 bits instead of two
-	// the 3dh defaults to zero which is bypass mode
-	dataToWrite |= (settings.fifoMode & 0x07) << 5; //apply mode
-	dataToWrite |= (settings.fifoThreshold & 0x1F); //apply threshold
-	//Now, write the patched together data
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_FIFO_CTRL: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_FIFO_CTRL, dataToWrite);
-
-	//On the 3DSH fifo enable is on CTRL-REG6 not 5
-	readRegister( &dataToWrite, LIS3DSH_CTRL_REG6 ); //Start with existing data
-	dataToWrite &= 0xBF;//clear bit 6
-	dataToWrite |= (settings.fifoEnabled & 0x01) << 6;
-	//Now, write the patched together data
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_CTRL_REG6: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_CTRL_REG6, dataToWrite);
-}
-
-// This simply clears out any data in the FIFO without storing it.
-// Same structure as 3DH.
-void LIS3DSH::fifoClear( void ) {
-	//Drain the fifo data and dump it
-	while( (fifoGetStatus() & 0x20 ) == 0 ) {
-		readRawAccelX();
-		readRawAccelY();
-		readRawAccelZ();
-	}
-}
-
-// It's not clear to me what this is supposed to do.
-// Is it supposed to flush 
-void LIS3DSH::fifoStartRec( void )
-{
-	uint8_t dataToWrite = 0;  //Temporary variable
-	
-	//Turn off...
-	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL ); //Start with existing data
-	dataToWrite &= 0x1F;//clear mode
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_FIFO_CTRL: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_FIFO_CTRL, dataToWrite);	
-	//  ... then back on again
-	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL ); //Start with existing data
-	dataToWrite &= 0x1F;//clear mode; 3 bits to clear not 2
-	dataToWrite |= (settings.fifoMode & 0x07) << 5; //apply mode
-	//Now, write the patched together data
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_FIFO_CTRL: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_FIFO_CTRL, dataToWrite);
-}
-
-uint8_t LIS3DSH::fifoGetStatus( void )
-{
-	// This is the same as in the 3DH
-	//Return some data on the state of the fifo
-	uint8_t tempReadByte = 0;
-	readRegister(&tempReadByte, LIS3DSH_FIFO_SRC);
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_FIFO_SRC: 0x");
-	Serial.println(tempReadByte, HEX);
-#endif
-	return tempReadByte;  
-}
-
-void LIS3DSH::fifoEnd( void )
-{
-	uint8_t dataToWrite = 0;  //Temporary variable
-
-	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL ); //Start with existing data
-	// In the 3dSh FIFO mode is 3 bits.
-	dataToWrite &= 0x1F;//clear mode
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_FIFO_CTRL: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_FIFO_CTRL, dataToWrite);
-
-
-	// Shouldn't we also clear Fifo enable in CTRL_REG6?
-	readRegister( &dataToWrite, LIS3DSH_CTRL_REG6);
-	// Clear bit 6
-	dataToWrite &= 0xBF;
-#ifdef VERBOSE_SERIAL
-	Serial.print("LIS3DSH_CTRL_REG6: 0x");
-	Serial.println(dataToWrite, HEX);
-#endif
-	writeRegister(LIS3DSH_CTRL_REG6, dataToWrite);
-}
-
+//uint16_t LIS3DSH::read10bitADC2( void )
+//{
+//	int16_t intTemp;
+//	uint16_t uintTemp;
+//	readRegisterInt16( &intTemp, LIS3DSH_OUT_ADC2_L );
+//	intTemp = 0 - intTemp;
+//	uintTemp = intTemp + 32768;
+//	return uintTemp >> 6;
+//}
+//
+//uint16_t LIS3DSH::read10bitADC3( void )
+//{
+//	int16_t intTemp;
+//	uint16_t uintTemp;
+//	readRegisterInt16( &intTemp, LIS3DSH_OUT_ADC3_L );
+//	intTemp = 0 - intTemp;
+//	uintTemp = intTemp + 32768;
+//	return uintTemp >> 6;
+//}
+//
+////****************************************************************************//
+////
+////  FIFO section
+////
+////****************************************************************************//
+//void LIS3DSH::fifoBegin( void )
+//{
+//	uint8_t dataToWrite = 0;  //Temporary variable
+//
+//	//Build LIS3DSH_FIFO_CTRL_REG
+//	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL_REG ); //Start with existing data
+//	dataToWrite &= 0x20;//clear all but bit 5
+//	dataToWrite |= (settings.fifoMode & 0x03) << 6; //apply mode
+//	dataToWrite |= (settings.fifoThreshold & 0x1F); //apply threshold
+//	//Now, write the patched together data
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_FIFO_CTRL_REG: 0x");
+//	Serial.println(dataToWrite, HEX);
+//#endif
+//	writeRegister(LIS3DSH_FIFO_CTRL_REG, dataToWrite);
+//
+//	//Build CTRL_REG5
+//	readRegister( &dataToWrite, LIS3DSH_CTRL_REG5 ); //Start with existing data
+//	dataToWrite &= 0xBF;//clear bit 6
+//	dataToWrite |= (settings.fifoEnabled & 0x01) << 6;
+//	//Now, write the patched together data
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_CTRL_REG5: 0x");
+//	Serial.println(dataToWrite, HEX);
+//#endif
+//	writeRegister(LIS3DSH_CTRL_REG5, dataToWrite);
+//}
+//
+//void LIS3DSH::fifoClear( void ) {
+//	//Drain the fifo data and dump it
+//	while( (fifoGetStatus() & 0x20 ) == 0 ) {
+//		readRawAccelX();
+//		readRawAccelY();
+//		readRawAccelZ();
+//	}
+//}
+//
+//void LIS3DSH::fifoStartRec( void )
+//{
+//	uint8_t dataToWrite = 0;  //Temporary variable
+//	
+//	//Turn off...
+//	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL_REG ); //Start with existing data
+//	dataToWrite &= 0x3F;//clear mode
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_FIFO_CTRL_REG: 0x");
+//	Serial.println(dataToWrite, HEX);
+//#endif
+//	writeRegister(LIS3DSH_FIFO_CTRL_REG, dataToWrite);	
+//	//  ... then back on again
+//	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL_REG ); //Start with existing data
+//	dataToWrite &= 0x3F;//clear mode
+//	dataToWrite |= (settings.fifoMode & 0x03) << 6; //apply mode
+//	//Now, write the patched together data
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_FIFO_CTRL_REG: 0x");
+//	Serial.println(dataToWrite, HEX);
+//#endif
+//	writeRegister(LIS3DSH_FIFO_CTRL_REG, dataToWrite);
+//}
+//
+//uint8_t LIS3DSH::fifoGetStatus( void )
+//{
+//	//Return some data on the state of the fifo
+//	uint8_t tempReadByte = 0;
+//	readRegister(&tempReadByte, LIS3DSH_FIFO_SRC_REG);
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_FIFO_SRC_REG: 0x");
+//	Serial.println(tempReadByte, HEX);
+//#endif
+//	return tempReadByte;  
+//}
+//
+//void LIS3DSH::fifoEnd( void )
+//{
+//	uint8_t dataToWrite = 0;  //Temporary variable
+//
+//	//Turn off...
+//	readRegister( &dataToWrite, LIS3DSH_FIFO_CTRL_REG ); //Start with existing data
+//	dataToWrite &= 0x3F;//clear mode
+//#ifdef VERBOSE_SERIAL
+//	Serial.print("LIS3DSH_FIFO_CTRL_REG: 0x");
+//	Serial.println(dataToWrite, HEX);
+//#endif
+//	writeRegister(LIS3DSH_FIFO_CTRL_REG, dataToWrite);	
+//}
+//
