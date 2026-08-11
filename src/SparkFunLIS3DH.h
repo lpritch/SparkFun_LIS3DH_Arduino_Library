@@ -33,6 +33,13 @@ Distributed as-is; no warranty is given.
 #define I2C_MODE 0
 #define SPI_MODE 1
 
+
+#define LIS3DH_ADDR_SEL_HIGH	0x18 // with SEL/SDO pulled up to VDD
+#define LIS3DH_ADDR_SEL_LOW	0x19	// with SEL/SDO pulled down to VSS
+
+#define LIS3DSH_ADDR_SEL_HIGH	0x1D	
+#define LIS3DSH_ADDR_SEL_LOW	0x1E	
+
 // Return values
 typedef enum
 {
@@ -163,6 +170,9 @@ public:
 	//IMU settings
 	SensorSettings3DSH settings;
 	
+	StateMachine sm1;
+	StateMachine sm2;
+	
 	//Error checking
 	uint16_t allOnesCounter;
 	uint16_t nonSuccessCounter;
@@ -174,7 +184,7 @@ public:
 	
 	//Call to apply SensorSettings
 	status_t begin( void );
-	void applySettings( void );
+	void applyGlobalSettings( void );
 
 	//Returns the raw bits from the sensor cast as 16-bit signed integers
 	int16_t readRawAccelX( void );
