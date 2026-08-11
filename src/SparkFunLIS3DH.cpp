@@ -36,8 +36,6 @@ Distributed as-is; no warranty is given.
 
 //See SparkFunLIS3DH.h for additional topology notes.
 
-#define VERBOSE_SERIAL
-
 #include "SparkFunLIS3DH.h"
 #include "stdint.h"
 
