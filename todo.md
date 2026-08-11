@@ -105,3 +105,24 @@ THRS
 
 THe settings paradigm in this library isn't super efficient. If you want to change a single setting you have two write to all the settings registers. Of course, that's not terrible given that there are only a handful. In theory we could make it more efficient from a write perspective, but do we really need to? No.
 
+Not working
+LIS3DSH_CTRL_REG4: 0x67
+LIS3DSH_CTRL_REG5: 0xC0
+LIS3DSH_CTRL_REG6: 0x0 --> should be 0x10
+LIS3DSH_FIFO_CTRL: 0x14 --> Should be 0x1F? This one shouldn't matter. It's watermark = 14 vs watermark = 31. Everyhing else the same.
+
+Working
+...
+LIS3DSH_CTRL_REG4: 0x67
+...
+LIS3DSH_CTRL_REG3: 0x18
+LIS3DSH_CTRL_REG5: 0xC0
+LIS3DSH_CTRL_REG6: 0x10
+LIS3DSH_FIFO_CTRL: 0x1F
+
+So somehow I got Reg4 and Reg5 right but reg6 and fifo_ctrl wrong.
+
+Reg6 needed to have autoincrement set to work as expected. I'm going to move that oout of applySettings and put it in begin() because we don't have a setting for that and we don't want to unexpectedly overwrite a user trying to change the setting.
+
+I'm also going to make applySettings read the settings
+first in case there are any hidden extra bits the user changes later.

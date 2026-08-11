@@ -30,6 +30,8 @@ Distributed as-is; no warranty is given.
 
 //See SparkFunLIS3DH.h for additional topology notes.
 
+#define VERBOSE_SERIAL
+
 #include "SparkFunLIS3DH.h"
 #include "stdint.h"
 
@@ -774,6 +776,17 @@ status_t LIS3DSH::begin( void )
 	//Begin the inherited core.  This gets the physical wires connected
 	status_t returnError = beginCore();
 
+	// Set bit4 of CTRL_REG6.
+	// Enables autoincrement, which is expected in the rest of this library.
+	// All other defaults on that register are fine. 
+	uint8_t dataToWrite = 0x10;
+#ifdef VERBOSE_SERIAL
+	Serial.print("LIS3DSH_CTRL_REG6: 0x");
+	Serial.println(dataToWrite, HEX);
+#endif
+	writeRegister(LIS3DSH_CTRL_REG6, dataToWrite);
+
+	// Apply all other settings
 	applySettings();
 	
 	return returnError;
@@ -800,7 +813,8 @@ void LIS3DSH::applySettings( void )
 	// output data rate
 	// block data update flag
 	// x,y,z enable
-	dataToWrite = 0;
+	readRegister(&dataToWrite,LIS3DSH_CTRL_REG4);
+	dataToWrite &= 0x08; // Clear all but bit 3
 	switch (settings.accelSampleRate) {
 		case 0:
 			optionCode = 0;
@@ -851,7 +865,8 @@ void LIS3DSH::applySettings( void )
 	writeRegister(LIS3DSH_CTRL_REG4,dataToWrite);
 
 	// CTRL_REG5
-	dataToWrite = 0x00;
+	readRegister(&dataToWrite, LIS3DSH_CTRL_REG5);
+	dataToWrite &= 0x07; // Clear all but bottom 3 bits.
 	switch (settings.accelRange) {
 		default:
 #ifdef VERBOSE_SERIAL
@@ -913,7 +928,8 @@ void LIS3DSH::applySettings( void )
 	writeRegister(LIS3DSH_CTRL_REG5, dataToWrite);
 
 	// CTRL_REG6
-	dataToWrite = 0x00;
+	readRegister(&dataToWrite,LIS3DSH_CTRL_REG6);
+	dataToWrite &= 0xBF; // Clear bit 6
 	dataToWrite |= settings.fifoEnabled << 6;
 #ifdef VERBOSE_SERIAL
 	Serial.print("LIS3DSH_CTRL_REG6: 0x");
@@ -922,7 +938,7 @@ void LIS3DSH::applySettings( void )
 	writeRegister(LIS3DSH_CTRL_REG6, dataToWrite);
 
 	// FIFO_CTRL
-	dataToWrite = 0x00;
+	dataToWrite = 0x00; // We will set all of these bits so we don't need to read the register
 	dataToWrite |= (0x7 & settings.fifoMode) << 5;
 	dataToWrite |= (settings.fifoThreshold & 0x1F);
 #ifdef VERBOSE_SERIAL
