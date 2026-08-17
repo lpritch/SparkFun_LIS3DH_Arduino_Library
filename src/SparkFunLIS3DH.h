@@ -67,7 +67,7 @@ class LIS3DHCore
 {
   public:
     LIS3DHCore(uint8_t);
-    LIS3DHCore(uint8_t, uint8_t);
+    LIS3DHCore(uint8_t, uint8_t,uint8_t);
     ~LIS3DHCore() = default;
 
     status_t beginCore(void);
@@ -93,6 +93,14 @@ class LIS3DHCore
     uint8_t commInterface;
     uint8_t I2CAddress;
     uint8_t chipSelectPin;
+    
+    // multipleSelectBit is used in the SPI protocol.
+    // On the LIS3DH this bit is 0x40 in the read request address and is used to autoincrement register addresses while reading
+    // multiple byes
+    // On the LIS3DSH autoincrement option is set by an internal register and setting the bit in the 
+    // register address would mess up the internal addressing which uses 7 bits.
+    // We set this upon construction, defaulting to the LIS3DH mode.
+    uint8_t multipleSelectBit;
 };
 
 // This struct holds the settings the driver uses to do calculations

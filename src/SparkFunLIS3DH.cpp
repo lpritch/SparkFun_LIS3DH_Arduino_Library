@@ -42,6 +42,7 @@ Distributed as-is; no warranty is given.
 #include "Wire.h"
 #include "SPI.h"
 
+#define VERBOSE_SERIAL
 //****************************************************************************//
 //
 //  LIS3DHCore functions.
@@ -58,7 +59,7 @@ Distributed as-is; no warranty is given.
 //  Default construction is I2C mode, address 0x6B.
 //
 //****************************************************************************//
-LIS3DHCore::LIS3DHCore( uint8_t busType, uint8_t inputArg ) : commInterface(I2C_MODE), I2CAddress(0x19), chipSelectPin(10)
+LIS3DHCore::LIS3DHCore( uint8_t busType, uint8_t inputArg, uint8_t msBit) : commInterface(I2C_MODE), I2CAddress(0x19), chipSelectPin(10), multipleSelectBit(0x40)
 {
 	commInterface = busType;
 	if( commInterface == I2C_MODE )
@@ -69,6 +70,7 @@ LIS3DHCore::LIS3DHCore( uint8_t busType, uint8_t inputArg ) : commInterface(I2C_
 	{
 		chipSelectPin = inputArg;
 	}
+	multipleSelectBit = msBit;
 
 }
 
@@ -147,6 +149,9 @@ status_t LIS3DHCore::beginCore(void)
 	readRegister(&readCheck, LIS3DH_WHO_AM_I);
 	// But this line does need to change as the 3dSh has a different ID
 	// The 3dh is 0x33, 3dSh is 0x3f
+#ifdef VERBOSE_SERIAL
+	Serial.print("readCheck: "); Serial.println(readCheck, HEX);
+#endif
 	if( readCheck != 0x33 && readCheck != 0x3F)
 	{
 		returnError = IMU_HW_ERROR;
@@ -207,7 +212,9 @@ status_t LIS3DHCore::readRegisterRegion(uint8_t *outputPointer , uint8_t offset,
 		// take the chip select low to select the device:
 		digitalWrite(chipSelectPin, LOW);
 		// send the device the register you want to read:
-		SPI.transfer(offset | 0x80 | 0x40);  //Ored with "read request" bit and "auto increment" bit
+		// I've made multipleSelectBit a variable because the LIS3DSH uses a different protocol for
+		// autoincrementing.
+		SPI.transfer(offset | 0x80 | multipleSelectBit);  //Ored with "read request" bit and "auto increment" bit
 		while ( i < length ) // slave may send less than requested
 		{
 			c = SPI.transfer(0x00); // receive a byte as character
@@ -276,7 +283,12 @@ status_t LIS3DHCore::readRegister(uint8_t* outputPointer, uint8_t offset) {
 		result = SPI.transfer(0x00);
 		// take the chip select high to de-select:
 		digitalWrite(chipSelectPin, HIGH);
-		
+//#ifdef VERBOSE_SERIAL
+//		Serial.println("READ REGISTER");
+//		Serial.print("\tPin: "); Serial.println(chipSelectPin);
+//		Serial.print("\tAddress with RW bit: "); Serial.println(offset | 0x80,HEX);
+//		Serial.print("\tResult: "); Serial.println(result,HEX);
+//#endif
 		if( result == 0xFF )
 		{
 			//we've recieved all ones, report
@@ -365,7 +377,7 @@ status_t LIS3DHCore::writeRegister(uint8_t offset, uint8_t dataToWrite) {
 //  Construct with same rules as the core ( uint8_t busType, uint8_t inputArg )
 //
 //****************************************************************************//
-LIS3DH::LIS3DH( uint8_t busType, uint8_t inputArg ) : LIS3DHCore( busType, inputArg )
+LIS3DH::LIS3DH( uint8_t busType, uint8_t inputArg ) : LIS3DHCore( busType, inputArg, 0x40)
 {
 	//Construct with these default settings
 	//ADC stuff
@@ -745,7 +757,7 @@ void LIS3DH::fifoEnd( void )
 //  Construct with same rules as the core ( uint8_t busType, uint8_t inputArg )
 //
 ////****************************************************************************//
-LIS3DSH::LIS3DSH( uint8_t busType, uint8_t inputArg ) : LIS3DHCore( busType, inputArg )
+LIS3DSH::LIS3DSH( uint8_t busType, uint8_t inputArg ) : LIS3DHCore( busType, inputArg, 0x00)
 {
 	// These are not defined for LIS3dSh
 	settings.adcEnabled = 0;
